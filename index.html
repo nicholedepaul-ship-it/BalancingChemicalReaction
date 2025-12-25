@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Level Up: Chemical Balancer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .atom-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 1px;
+            border: 1px solid rgba(0,0,0,0.1);
+            animation: pop 0.3s ease-out;
+        }
+        @keyframes pop {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+        .reaction-font {
+            font-family: 'Times New Roman', Times, serif;
+        }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            opacity: 1;
+        }
+        .balanced-glow {
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+            border-color: #22c55e !important;
+        }
+        input:placeholder-shown {
+            background-color: #f8fafc;
+            border-style: dashed;
+        }
+        .equation-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding: 15px 5px;
+            white-space: nowrap;
+            transition: font-size 0.3s ease;
+        }
+        /* Dynamic sizing for level 3 */
+        .level-hard .equation-container {
+            font-size: 1.5rem; /* Base font size for hard mode */
+        }
+        @media (min-width: 768px) {
+            .level-hard .equation-container {
+                font-size: 2.25rem;
+            }
+        }
+        /* Adjusted input size for hard mode */
+        .level-hard .coeff-input {
+            width: 3.5rem;
+            height: 3.5rem;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        <header class="bg-slate-900 text-white p-6 text-center">
+            <h1 class="text-3xl font-bold tracking-tight">Chemistry Challenge: Balancing Act</h1>
+            <p class="text-slate-400 mt-1">Master the Law of Conservation of Mass</p>
+        </header>
+
+        <main class="p-6">
+            <!-- Difficulty Selection -->
+            <div class="grid md:grid-cols-2 gap-4 mb-8">
+                <div class="space-y-2">
+                    <label class="text-xs font-black text-slate-500 uppercase tracking-widest">1. Choose Difficulty</label>
+                    <select id="levelSelect" class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg">
+                        <option value="easy">Level 1: Basic (2 Elements)</option>
+                        <option value="medium">Level 2: Intermediate (3 Elements)</option>
+                        <option value="hard">Level 3: Advanced (Complex/Polyatomic)</option>
+                    </select>
+                </div>
+                <div class="flex items-end gap-3">
+                    <button id="nextBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-4 rounded-xl transition font-bold border-b-4 border-blue-800 active:border-b-0 active:translate-y-1">
+                        Get Random Reaction
+                    </button>
+                    <button id="resetBtn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-4 rounded-xl transition font-bold border-b-4 border-slate-300 active:border-b-0 active:translate-y-1">
+                        Clear Inputs
+                    </button>
+                </div>
+            </div>
+
+            <!-- The Work Area -->
+            <div id="mainWorkArea" class="bg-white rounded-2xl border-2 border-slate-100 p-8 mb-8 transition-all duration-500 min-h-[300px] flex flex-col justify-center">
+                <div class="text-center mb-4 h-6">
+                    <span id="reactionLabel" class="text-xs font-bold text-blue-500 uppercase tracking-widest"></span>
+                </div>
+                
+                <div class="equation-container text-3xl md:text-5xl reaction-font mb-10" id="equationDisplay">
+                    <!-- Dynamically populated -->
+                </div>
+                
+                <div class="flex justify-center">
+                    <div id="statusMessage" class="px-10 py-4 rounded-full font-black text-lg uppercase tracking-widest shadow-md transition-all duration-300">
+                        <!-- Status text -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard -->
+            <div class="grid lg:grid-cols-2 gap-8">
+                <!-- Table View -->
+                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                    <h3 class="font-black text-slate-500 text-xs uppercase tracking-widest mb-4 flex items-center justify-center gap-2">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        Atom Inventory
+                    </h3>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <table class="w-full text-center">
+                            <thead class="bg-slate-800 text-white text-xs">
+                                <tr>
+                                    <th class="p-4 uppercase text-center">Element</th>
+                                    <th class="p-4 text-center uppercase">Reactants</th>
+                                    <th class="p-4 text-center uppercase">Products</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryBody" class="divide-y divide-slate-100">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Visual View -->
+                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                    <h3 class="font-black text-slate-500 text-xs uppercase tracking-widest mb-4 flex items-center justify-center gap-2">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        Visual Balancing Dots
+                    </h3>
+                    <div id="visualInventory" class="space-y-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const library = {
+            easy: [
+                { reactants: [{name:'H₂', parts:{H:2}}, {name:'O₂', parts:{O:2}}], products: [{name:'H₂O', parts:{H:2, O:1}}] },
+                { reactants: [{name:'Mg', parts:{Mg:1}}, {name:'O₂', parts:{O:2}}], products: [{name:'MgO', parts:{Mg:1, O:1}}] },
+                { reactants: [{name:'KClO₃', parts:{K:1, Cl:1, O:3}}], products: [{name:'KCl', parts:{K:1, Cl:1}}, {name:'O₂', parts:{O:2}}] },
+                { reactants: [{name:'HgO', parts:{Hg:1, O:1}}], products: [{name:'Hg', parts:{Hg:1}}, {name:'O₂', parts:{O:2}}] },
+                { reactants: [{name:'Ag₂O', parts:{Ag:2, O:1}}], products: [{name:'Ag', parts:{Ag:1}}, {name:'O₂', parts:{O:2}}] },
+                { reactants: [{name:'S₈', parts:{S:8}}, {name:'O₂', parts:{O:2}}], products: [{name:'SO₂', parts:{S:1, O:2}}] },
+                { reactants: [{name:'P₄', parts:{P:4}}, {name:'O₂', parts:{O:2}}], products: [{name:'P₂O₅', parts:{P:2, O:5}}] },
+                { reactants: [{name:'S₈', parts:{S:8}}, {name:'F₂', parts:{F:2}}], products: [{name:'SF₆', parts:{S:1, F:6}}] },
+                { reactants: [{name:'KBr', parts:{K:1, Br:1}}, {name:'F₂', parts:{F:2}}], products: [{name:'KF', parts:{K:1, F:1}}, {name:'Br₂', parts:{Br:2}}] },
+                { reactants: [{name:'H₂O₂', parts:{H:2, O:2}}], products: [{name:'H₂O', parts:{H:2, O:1}}, {name:'O₂', parts:{O:2}}] }
+            ],
+            medium: [
+                { reactants: [{name:'CH₄', parts:{C:1, H:4}}, {name:'O₂', parts:{O:2}}], products: [{name:'CO₂', parts:{C:1, O:2}}, {name:'H₂O', parts:{H:2, O:1}}] },
+                { reactants: [{name:'N₂', parts:{N:2}}, {name:'H₂', parts:{H:2}}], products: [{name:'NH₃', parts:{N:1, H:3}}] },
+                { reactants: [{name:'Fe', parts:{Fe:1}}, {name:'AgNO₃', parts:{Ag:1, N:1, O:3}}], products: [{name:'Fe(NO₃)₂', parts:{Fe:1, N:2, O:6}}, {name:'Ag', parts:{Ag:1}}] },
+                { reactants: [{name:'Al', parts:{Al:1}}, {name:'FeO', parts:{Fe:1, O:1}}], products: [{name:'Al₂O₃', parts:{Al:2, O:3}}, {name:'Fe', parts:{Fe:1}}] },
+                { reactants: [{name:'Mg', parts:{Mg:1}}, {name:'CuCl₂', parts:{Cu:1, Cl:2}}], products: [{name:'MgCl₂', parts:{Mg:1, Cl:2}}, {name:'Cu', parts:{Cu:1}}] },
+                { reactants: [{name:'Fe', parts:{Fe:1}}, {name:'O₂', parts:{O:2}}], products: [{name:'Fe₂O₃', parts:{Fe:2, O:3}}] },
+                { reactants: [{name:'C₂H₆', parts:{C:2, H:6}}, {name:'O₂', parts:{O:2}}], products: [{name:'CO₂', parts:{C:1, O:2}}, {name:'H₂O', parts:{H:2, O:1}}] },
+                { reactants: [{name:'C₃H₈', parts:{C:3, H:8}}, {name:'O₂', parts:{O:2}}], products: [{name:'CO₂', parts:{C:1, O:2}}, {name:'H₂O', parts:{H:2, O:1}}] }
+            ],
+            hard: [
+                { reactants: [{name:'NaNO₃', parts:{Na:1, N:1, O:3}}, {name:'PbO', parts:{Pb:1, O:1}}], products: [{name:'Pb(NO₃)₂', parts:{Pb:1, N:2, O:6}}, {name:'Na₂O', parts:{Na:2, O:1}}] },
+                { reactants: [{name:'AgI', parts:{Ag:1, I:1}}, {name:'Fe₂(CO₃)₃', parts:{Fe:2, C:3, O:9}}], products: [{name:'FeI₃', parts:{Fe:1, I:3}}, {name:'Ag₂CO₃', parts:{Ag:2, C:1, O:3}}] },
+                { reactants: [{name:'Na₂SO₄', parts:{Na:2, S:1, O:4}}, {name:'Pb(NO₃)₂', parts:{Pb:1, N:2, O:6}}], products: [{name:'NaNO₃', parts:{Na:1, N:1, O:3}}, {name:'PbSO₄', parts:{Pb:1, S:1, O:4}}] },
+                { reactants: [{name:'FeCl₃', parts:{Fe:1, Cl:3}}, {name:'Na₂CO₃', parts:{Na:2, C:1, O:3}}], products: [{name:'Fe₂(CO₃)₃', parts:{Fe:2, C:3, O:9}}, {name:'NaCl', parts:{Na:1, Cl:1}}] },
+                { reactants: [{name:'CaCl₂', parts:{Ca:1, Cl:2}}, {name:'Na₃PO₄', parts:{Na:3, P:1, O:4}}], products: [{name:'NaCl', parts:{Na:1, Cl:1}}, {name:'Ca₃(PO₄)₂', parts:{Ca:3, P:2, O:8}}] },
+                { reactants: [{name:'CO₂', parts:{C:1, O:2}}, {name:'H₂O', parts:{H:2, O:1}}], products: [{name:'C₆H₁₂O₆', parts:{C:6, H:12, O:6}}, {name:'O₂', parts:{O:2}}] },
+                { reactants: [{name:'Al', parts:{Al:1}}, {name:'Fe₂O₃', parts:{Fe:2, O:3}}], products: [{name:'Al₂O₃', parts:{Al:2, O:3}}, {name:'Fe', parts:{Fe:1}}] },
+                { reactants: [{name:'NH₃', parts:{N:1, H:3}}, {name:'O₂', parts:{O:2}}], products: [{name:'NO', parts:{N:1, O:1}}, {name:'H₂O', parts:{H:2, O:1}}] },
+                { reactants: [{name:'KMnO₄', parts:{K:1, Mn:1, O:4}}, {name:'HCl', parts:{H:1, Cl:1}}], products: [{name:'KCl', parts:{K:1, Cl:1}}, {name:'MnCl₂', parts:{Mn:1, Cl:2}}, {name:'H₂O', parts:{H:2, O:1}}, {name:'Cl₂', parts:{Cl:2}}] }
+            ]
+        };
+
+        const colors = { 
+            H: '#ef4444', O: '#3b82f6', N: '#10b981', C: '#64748b', Fe: '#f59e0b', 
+            Mg: '#a855f7', Al: '#ec4899', Cl: '#84cc16', K: '#06b6d4', Na: '#f97316',
+            Pb: '#475569', Ag: '#94a3b8', S: '#eab308', P: '#d946ef', I: '#6366f1',
+            Ca: '#fb923c', Hg: '#f43f5e', F: '#2dd4bf', Mn: '#8b5cf6', Cu: '#d97706', Br: '#7c2d12'
+        };
+
+        let currentLevel = 'easy';
+        let currentReaction = null;
+        let coefficients = { r: [], p: [] };
+
+        const levelSelect = document.getElementById('levelSelect');
+        const nextBtn = document.getElementById('nextBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const equationDisplay = document.getElementById('equationDisplay');
+        const inventoryBody = document.getElementById('inventoryBody');
+        const visualInventory = document.getElementById('visualInventory');
+        const statusMessage = document.getElementById('statusMessage');
+        const workArea = document.getElementById('mainWorkArea');
+
+        function getRandomReaction() {
+            currentLevel = levelSelect.value;
+            const rxList = library[currentLevel];
+            const randomIndex = Math.floor(Math.random() * rxList.length);
+            currentReaction = rxList[randomIndex];
+            
+            coefficients.r = currentReaction.reactants.map(() => null);
+            coefficients.p = currentReaction.products.map(() => null);
+            
+            // Apply level-specific styling to workArea
+            workArea.className = currentLevel === 'hard' ? 
+                "bg-white rounded-2xl border-2 border-slate-100 p-4 md:p-8 mb-8 transition-all duration-500 min-h-[300px] flex flex-col justify-center level-hard" :
+                "bg-white rounded-2xl border-2 border-slate-100 p-8 mb-8 transition-all duration-500 min-h-[300px] flex flex-col justify-center";
+
+            renderUI();
+        }
+
+        function renderUI() {
+            equationDisplay.innerHTML = '';
+            
+            const addGroup = (mols, type) => {
+                mols.forEach((mol, i) => {
+                    if (i > 0) {
+                        const plus = document.createElement('span');
+                        plus.className = "mx-2 md:mx-4 text-slate-300 select-none flex items-center";
+                        plus.textContent = "+";
+                        equationDisplay.appendChild(plus);
+                    }
+                    
+                    const molContainer = document.createElement('div');
+                    molContainer.className = "flex items-center";
+                    
+                    const input = createInput(type, i);
+                    molContainer.appendChild(input);
+                    
+                    const span = document.createElement('span');
+                    span.className = "ml-1 md:ml-2 mr-1 md:mr-2 font-bold whitespace-nowrap";
+                    span.innerHTML = formatSubscripts(mol.name);
+                    molContainer.appendChild(span);
+                    
+                    equationDisplay.appendChild(molContainer);
+                });
+            };
+
+            addGroup(currentReaction.reactants, 'r');
+            
+            const arrow = document.createElement('span');
+            arrow.className = "mx-4 md:mx-8 text-slate-800 font-bold select-none flex items-center";
+            arrow.textContent = "→";
+            equationDisplay.appendChild(arrow);
+            
+            addGroup(currentReaction.products, 'p');
+
+            calculate();
+        }
+
+        function calculate() {
+            const counts = { left: {}, right: {} };
+            let allFilled = true;
+
+            currentReaction.reactants.forEach((mol, i) => {
+                const val = coefficients.r[i];
+                if (val === null || val === undefined) allFilled = false;
+                const c = val || 0;
+                for (let el in mol.parts) counts.left[el] = (counts.left[el] || 0) + (mol.parts[el] * c);
+            });
+            currentReaction.products.forEach((mol, i) => {
+                const val = coefficients.p[i];
+                if (val === null || val === undefined) allFilled = false;
+                const c = val || 0;
+                for (let el in mol.parts) counts.right[el] = (counts.right[el] || 0) + (mol.parts[el] * c);
+            });
+
+            const allEls = [...new Set([...Object.keys(counts.left), ...Object.keys(counts.right)])];
+            inventoryBody.innerHTML = '';
+            visualInventory.innerHTML = '';
+            let atomsMatch = true;
+
+            allEls.forEach(el => {
+                const l = counts.left[el] || 0;
+                const r = counts.right[el] || 0;
+                const match = (l === r) && (l > 0);
+                if (!match) atomsMatch = false;
+
+                inventoryBody.innerHTML += `
+                    <tr class="${match ? 'bg-green-50' : ''}">
+                        <td class="p-4 font-bold text-slate-600 text-center">${el}</td>
+                        <td class="p-4 text-center font-mono text-xl ${match ? 'text-green-600' : 'text-slate-400'}">${l}</td>
+                        <td class="p-4 text-center font-mono text-xl ${match ? 'text-green-600' : 'text-slate-400'}">${r}</td>
+                    </tr>
+                `;
+
+                const dotsRow = document.createElement('div');
+                dotsRow.className = "space-y-1";
+                dotsRow.innerHTML = `
+                    <div class="flex justify-between text-[10px] font-black text-slate-400 uppercase">
+                        <span>${el} (L)</span>
+                        <span class="text-slate-900 font-bold">${el}</span>
+                        <span>${el} (R)</span>
+                    </div>
+                    <div class="flex gap-2 items-center bg-white border border-slate-200 p-2 rounded-lg">
+                        <div class="flex-1 flex flex-wrap gap-0.5 justify-end" id="dots-l-${el}"></div>
+                        <div class="w-px h-6 bg-slate-200"></div>
+                        <div class="flex-1 flex flex-wrap gap-0.5 justify-start" id="dots-r-${el}"></div>
+                    </div>
+                `;
+                visualInventory.appendChild(dotsRow);
+                drawDots(`dots-l-${el}`, l, colors[el]);
+                drawDots(`dots-r-${el}`, r, colors[el]);
+            });
+
+            if (atomsMatch && allFilled) {
+                statusMessage.textContent = "✓ Balanced!";
+                statusMessage.className = "px-10 py-4 rounded-full font-black text-lg uppercase tracking-widest shadow-xl bg-green-600 text-white animate-bounce";
+                workArea.classList.add('balanced-glow');
+            } else if (!allFilled) {
+                statusMessage.textContent = "Enter Coefficients";
+                statusMessage.className = "px-10 py-4 rounded-full font-black text-lg uppercase tracking-widest bg-white text-blue-300 border-2 border-blue-50";
+                workArea.classList.remove('balanced-glow');
+            } else {
+                statusMessage.textContent = "Unbalanced";
+                statusMessage.className = "px-10 py-4 rounded-full font-black text-lg uppercase tracking-widest bg-white text-slate-300 border-2 border-slate-100";
+                workArea.classList.remove('balanced-glow');
+            }
+        }
+
+        function createInput(side, index) {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = 1;
+            input.placeholder = "—";
+            input.value = (coefficients[side][index] === null) ? "" : coefficients[side][index];
+            
+            // Standard classes + specific class for hard level resizing
+            input.className = "coeff-input w-16 h-14 text-center border-4 border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none text-2xl font-black transition-all flex-shrink-0";
+            
+            input.oninput = (e) => {
+                let v = parseInt(e.target.value);
+                coefficients[side][index] = isNaN(v) ? null : v;
+                calculate();
+            };
+            return input;
+        }
+
+        function drawDots(id, n, color) {
+            const el = document.getElementById(id);
+            for (let i = 0; i < n; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'atom-dot';
+                dot.style.backgroundColor = color || '#ccc';
+                el.appendChild(dot);
+            }
+        }
+
+        function formatSubscripts(s) { 
+            return s.replace(/(\d+)/g, '<sub>$1</sub>')
+                    .replace(/\((.*?)\)/g, '($1)'); 
+        }
+
+        levelSelect.onchange = getRandomReaction;
+        nextBtn.onclick = getRandomReaction;
+        resetBtn.onclick = () => {
+            coefficients.r = currentReaction.reactants.map(() => null);
+            coefficients.p = currentReaction.products.map(() => null);
+            renderUI();
+        };
+
+        window.onload = getRandomReaction;
+    </script>
+</body>
+</html>
